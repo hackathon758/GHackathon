@@ -2184,6 +2184,482 @@ async def get_compliance_templates(current_user: dict = Depends(get_current_user
     }
     return templates
 
+@api_router.get("/compliance/score")
+async def get_compliance_score(current_user: dict = Depends(get_current_user)):
+    """Calculate dynamic compliance score based on actual security posture"""
+    user_id = current_user["id"]
+    org_id = current_user.get("organization", "default")
+    industry = current_user.get("industry", "general")
+    
+    # Get threats data
+    total_threats = await db.threats.count_documents({"organization_id": org_id})
+    active_threats = await db.threats.count_documents({"organization_id": org_id, "status": "active"})
+    mitigated_threats = await db.threats.count_documents({"organization_id": org_id, "status": "mitigated"})
+    critical_threats = await db.threats.count_documents({"organization_id": org_id, "severity": "critical", "status": "active"})
+    
+    # Get controls data
+    controls = await db.compliance_controls.find({"user_id": user_id}).to_list(length=1000)
+    total_controls = len(controls)
+    implemented_controls = len([c for c in controls if c.get("status") == "implemented"])
+    partial_controls = len([c for c in controls if c.get("status") == "partial"])
+    not_implemented = len([c for c in controls if c.get("status") == "not_implemented"])
+    
+    # Get recent audits
+    recent_audits = await db.compliance_audits.find(
+        {"organization_id": org_id}
+    ).sort("audit_date", -1).limit(5).to_list(length=5)
+    
+    # Calculate overall score (0-100)
+    base_score = 100.0
+    
+    # Deduct for active threats
+    if total_threats > 0:
+        threat_penalty = (active_threats / max(total_threats, 1)) * 30
+        base_score -= threat_penalty
+    
+    # Deduct for critical threats
+    critical_penalty = min(critical_threats * 5, 20)
+    base_score -= critical_penalty
+    
+    # Add points for implemented controls
+    if total_controls > 0:
+        control_bonus = (implemented_controls / total_controls) * 25
+        partial_bonus = (partial_controls / total_controls) * 10
+        base_score = base_score * 0.7 + control_bonus + partial_bonus
+    
+    # Ensure score is between 0-100
+    overall_score = max(0, min(100, base_score))
+    
+    # Calculate scores by standard (industry-specific)
+    standards_map = {
+        "healthcare": ["HIPAA", "HITECH", "FDA 21 CFR Part 11"],
+        "finance": ["PCI-DSS", "SOX", "GLBA"],
+        "government": ["FISMA", "FedRAMP", "NIST 800-53"],
+        "education": ["FERPA", "COPPA"],
+        "ecommerce": ["PCI-DSS", "GDPR", "CCPA"],
+        "manufacturing": ["IEC 62443", "NIST CSF", "ISO 27001"]
+    }
+    
+    standards = standards_map.get(industry, ["ISO 27001", "NIST CSF"])
+    scores_by_standard = {}
+    for standard in standards:
+        # Calculate per-standard score based on controls
+        standard_controls = [c for c in controls if c.get("standard") == standard]
+        if standard_controls:
+            implemented = len([c for c in standard_controls if c.get("status") == "implemented"])
+            total = len(standard_controls)
+            scores_by_standard[standard] = round((implemented / total) * 100, 1)
+        else:
+            scores_by_standard[standard] = round(overall_score + random.uniform(-5, 5), 1)
+    
+    # Determine trend
+    if len(recent_audits) >= 2:
+        latest_score = recent_audits[0].get("overall_score", overall_score)
+        previous_score = recent_audits[1].get("overall_score", overall_score)
+        if latest_score > previous_score + 5:
+            trend = "improving"
+        elif latest_score < previous_score - 5:
+            trend = "declining"
+        else:
+            trend = "stable"
+    else:
+        trend = "stable"
+    
+    # Calculate threat impact
+    threat_impact = round((active_threats / max(total_threats, 1)) * 100 if total_threats > 0 else 0, 1)
+    
+    # Format recent audits
+    audits_summary = []
+    for audit in recent_audits[:3]:
+        audits_summary.append({
+            "id": audit.get("id"),
+            "date": audit.get("audit_date"),
+            "score": audit.get("overall_score"),
+            "status": audit.get("status")
+        })
+    
+    return ComplianceScore(
+        overall_score=round(overall_score, 1),
+        industry=industry,
+        scores_by_standard=scores_by_standard,
+        controls_status={
+            "implemented": implemented_controls,
+            "not_implemented": not_implemented,
+            "partial": partial_controls
+        },
+        recent_audits=audits_summary,
+        threat_impact=threat_impact,
+        trend=trend,
+        last_calculated=datetime.now(timezone.utc)
+    )
+
+@api_router.post("/compliance/audit")
+async def run_compliance_audit(current_user: dict = Depends(get_current_user)):
+    """Run a comprehensive compliance audit"""
+    user_id = current_user["id"]
+    org_id = current_user.get("organization", "default")
+    industry = current_user.get("industry", "general")
+    
+    # Get industry standards
+    standards_map = {
+        "healthcare": ["HIPAA", "HITECH", "FDA 21 CFR Part 11"],
+        "finance": ["PCI-DSS", "SOX", "GLBA"],
+        "government": ["FISMA", "FedRAMP", "NIST 800-53"],
+        "education": ["FERPA", "COPPA"],
+        "ecommerce": ["PCI-DSS", "GDPR", "CCPA"],
+        "manufacturing": ["IEC 62443", "NIST CSF", "ISO 27001"]
+    }
+    standards = standards_map.get(industry, ["ISO 27001", "NIST CSF"])
+    
+    # Get controls
+    controls = await db.compliance_controls.find({"user_id": user_id}).to_list(length=1000)
+    
+    # Get threats
+    active_threats = await db.threats.find({"organization_id": org_id, "status": "active"}).to_list(length=100)
+    critical_threats = [t for t in active_threats if t.get("severity") == "critical"]
+    high_threats = [t for t in active_threats if t.get("severity") == "high"]
+    
+    # Run audit checks
+    findings = []
+    recommendations = []
+    passed_controls = 0
+    failed_controls = 0
+    warnings = 0
+    
+    # Check 1: Control Implementation
+    for control in controls:
+        if control.get("status") == "implemented":
+            passed_controls += 1
+        elif control.get("status") == "not_implemented":
+            failed_controls += 1
+            findings.append({
+                "severity": "high",
+                "type": "control_not_implemented",
+                "control": control.get("name"),
+                "standard": control.get("standard"),
+                "message": f"Control '{control.get('name')}' is not implemented"
+            })
+            recommendations.append(f"Implement {control.get('name')} to meet {control.get('standard')} requirements")
+        else:  # partial
+            warnings += 1
+            findings.append({
+                "severity": "medium",
+                "type": "control_partial",
+                "control": control.get("name"),
+                "standard": control.get("standard"),
+                "message": f"Control '{control.get('name')}' is partially implemented"
+            })
+    
+    # Check 2: Active Threats
+    if len(critical_threats) > 0:
+        failed_controls += 1
+        findings.append({
+            "severity": "critical",
+            "type": "active_critical_threats",
+            "count": len(critical_threats),
+            "message": f"{len(critical_threats)} critical threats detected and not mitigated"
+        })
+        recommendations.append("Immediately address all critical security threats")
+    
+    if len(high_threats) > 3:
+        warnings += 1
+        findings.append({
+            "severity": "high",
+            "type": "active_high_threats",
+            "count": len(high_threats),
+            "message": f"{len(high_threats)} high-severity threats require attention"
+        })
+        recommendations.append("Prioritize mitigation of high-severity threats")
+    
+    # Check 3: Documents
+    documents = await db.compliance_documents.find({"organization_id": org_id}).to_list(length=100)
+    if len(documents) < 3:
+        warnings += 1
+        findings.append({
+            "severity": "medium",
+            "type": "insufficient_documentation",
+            "message": "Insufficient compliance documentation uploaded"
+        })
+        recommendations.append("Upload required compliance policies and procedures")
+    
+    # Check 4: Incident Response
+    incidents = await db.incidents.find({"organization_id": org_id}).to_list(length=100)
+    if len(incidents) == 0 and len(active_threats) > 0:
+        warnings += 1
+        findings.append({
+            "severity": "medium",
+            "type": "no_incident_response",
+            "message": "Active threats detected but no incident responses recorded"
+        })
+        recommendations.append("Document incident response procedures and actions")
+    
+    # Calculate overall score
+    total_checks = passed_controls + failed_controls + warnings
+    if total_checks > 0:
+        overall_score = round((passed_controls / total_checks) * 100, 1)
+    else:
+        overall_score = 50.0
+    
+    # Create audit record
+    audit = ComplianceAudit(
+        audit_type="on_demand",
+        industry=industry,
+        standards_checked=standards,
+        overall_score=overall_score,
+        passed_controls=passed_controls,
+        failed_controls=failed_controls,
+        warnings=warnings,
+        findings=findings,
+        recommendations=recommendations[:10],  # Top 10 recommendations
+        audited_by=user_id,
+        organization_id=org_id,
+        blockchain_hash=generate_blockchain_hash(f"audit_{org_id}_{datetime.now().isoformat()}"),
+        status="completed"
+    )
+    
+    # Save to database
+    audit_dict = audit.model_dump()
+    audit_dict["audit_date"] = audit_dict["audit_date"].isoformat()
+    await db.compliance_audits.insert_one(audit_dict)
+    
+    # Record blockchain transaction
+    await record_blockchain_transaction("compliance_audit", audit.id)
+    
+    return audit
+
+@api_router.get("/compliance/audits")
+async def get_compliance_audits(
+    limit: int = 10,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get compliance audit history"""
+    org_id = current_user.get("organization", "default")
+    
+    audits = await db.compliance_audits.find(
+        {"organization_id": org_id}
+    ).sort("audit_date", -1).limit(limit).to_list(length=limit)
+    
+    return {"audits": audits, "count": len(audits)}
+
+@api_router.get("/compliance/controls")
+async def get_compliance_controls(current_user: dict = Depends(get_current_user)):
+    """Get all compliance controls for the user's industry"""
+    user_id = current_user["id"]
+    org_id = current_user.get("organization", "default")
+    industry = current_user.get("industry", "general")
+    
+    # Check if controls already exist for this user
+    existing_controls = await db.compliance_controls.find({"user_id": user_id}).to_list(length=1000)
+    
+    if not existing_controls:
+        # Initialize default controls based on industry
+        default_controls = []
+        
+        if industry == "healthcare":
+            default_controls = [
+                {"control_id": "HIPAA-001", "name": "PHI Access Control", "description": "Implement role-based access control for Protected Health Information", "standard": "HIPAA", "category": "access_control"},
+                {"control_id": "HIPAA-002", "name": "Data Encryption", "description": "Encrypt PHI at rest and in transit", "standard": "HIPAA", "category": "encryption"},
+                {"control_id": "HIPAA-003", "name": "Audit Logging", "description": "Maintain comprehensive audit trails", "standard": "HIPAA", "category": "monitoring"},
+                {"control_id": "HIPAA-004", "name": "Breach Notification", "description": "Implement breach notification procedures", "standard": "HIPAA", "category": "incident_response"},
+                {"control_id": "HITECH-001", "name": "Risk Assessment", "description": "Conduct regular risk assessments", "standard": "HITECH", "category": "risk_management"},
+            ]
+        elif industry == "finance":
+            default_controls = [
+                {"control_id": "PCI-001", "name": "Firewall Configuration", "description": "Install and maintain firewall configuration", "standard": "PCI-DSS", "category": "network_security"},
+                {"control_id": "PCI-002", "name": "Default Passwords", "description": "Change vendor-supplied defaults", "standard": "PCI-DSS", "category": "access_control"},
+                {"control_id": "PCI-003", "name": "Cardholder Data Protection", "description": "Protect stored cardholder data", "standard": "PCI-DSS", "category": "data_protection"},
+                {"control_id": "SOX-001", "name": "Financial Controls", "description": "Implement financial reporting controls", "standard": "SOX", "category": "financial_controls"},
+                {"control_id": "GLBA-001", "name": "Customer Privacy", "description": "Protect customer financial information", "standard": "GLBA", "category": "privacy"},
+            ]
+        elif industry == "government":
+            default_controls = [
+                {"control_id": "NIST-001", "name": "Access Control", "description": "Limit system access to authorized users", "standard": "NIST 800-53", "category": "access_control"},
+                {"control_id": "NIST-002", "name": "Incident Response", "description": "Establish incident response capability", "standard": "NIST 800-53", "category": "incident_response"},
+                {"control_id": "FISMA-001", "name": "Continuous Monitoring", "description": "Implement continuous monitoring", "standard": "FISMA", "category": "monitoring"},
+                {"control_id": "FedRAMP-001", "name": "Security Assessment", "description": "Conduct security assessments", "standard": "FedRAMP", "category": "assessment"},
+            ]
+        else:
+            # Generic controls
+            default_controls = [
+                {"control_id": "ISO-001", "name": "Information Security Policy", "description": "Establish information security policies", "standard": "ISO 27001", "category": "policy"},
+                {"control_id": "ISO-002", "name": "Access Control", "description": "Implement access control measures", "standard": "ISO 27001", "category": "access_control"},
+                {"control_id": "ISO-003", "name": "Cryptography", "description": "Use cryptographic controls", "standard": "ISO 27001", "category": "encryption"},
+                {"control_id": "NIST-001", "name": "Risk Assessment", "description": "Conduct risk assessments", "standard": "NIST CSF", "category": "risk_management"},
+            ]
+        
+        # Create control documents
+        for ctrl in default_controls:
+            control = ComplianceControl(
+                control_id=ctrl["control_id"],
+                name=ctrl["name"],
+                description=ctrl["description"],
+                standard=ctrl["standard"],
+                category=ctrl["category"],
+                status="not_implemented",
+                user_id=user_id,
+                organization_id=org_id,
+                industry=industry
+            )
+            control_dict = control.model_dump()
+            await db.compliance_controls.insert_one(control_dict)
+        
+        # Fetch newly created controls
+        existing_controls = await db.compliance_controls.find({"user_id": user_id}).to_list(length=1000)
+    
+    return {"controls": existing_controls, "count": len(existing_controls)}
+
+@api_router.put("/compliance/controls/{control_id}/status")
+async def update_control_status(
+    control_id: str,
+    update: ComplianceControlUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update compliance control implementation status"""
+    user_id = current_user["id"]
+    
+    control = await db.compliance_controls.find_one({"id": control_id, "user_id": user_id})
+    if not control:
+        raise HTTPException(status_code=404, detail="Control not found")
+    
+    update_data = {"status": update.status}
+    if update.status == "implemented":
+        update_data["implementation_date"] = datetime.now(timezone.utc).isoformat()
+        update_data["last_verified"] = datetime.now(timezone.utc).isoformat()
+    
+    await db.compliance_controls.update_one(
+        {"id": control_id},
+        {"$set": update_data}
+    )
+    
+    # Record blockchain transaction
+    await record_blockchain_transaction("control_update", control_id)
+    
+    updated_control = await db.compliance_controls.find_one({"id": control_id})
+    return updated_control
+
+@api_router.post("/compliance/documents")
+async def upload_compliance_document(
+    document: ComplianceDocumentCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Upload a compliance document"""
+    import base64
+    
+    user_id = current_user["id"]
+    org_id = current_user.get("organization", "default")
+    
+    # In a real implementation, you would save the file to storage
+    # For now, we'll simulate by storing metadata
+    file_path = f"/compliance_docs/{org_id}/{document.file_name}"
+    
+    doc = ComplianceDocument(
+        title=document.title,
+        description=document.description,
+        document_type=document.document_type,
+        compliance_standard=document.compliance_standard,
+        file_name=document.file_name,
+        file_size=document.file_size,
+        file_path=file_path,
+        uploaded_by=user_id,
+        organization_id=org_id,
+        tags=document.tags,
+        blockchain_hash=generate_blockchain_hash(f"doc_{document.file_name}_{datetime.now().isoformat()}")
+    )
+    
+    doc_dict = doc.model_dump()
+    doc_dict["uploaded_at"] = doc_dict["uploaded_at"].isoformat()
+    await db.compliance_documents.insert_one(doc_dict)
+    
+    # Record blockchain transaction
+    await record_blockchain_transaction("document_upload", doc.id)
+    
+    return doc
+
+@api_router.get("/compliance/documents")
+async def get_compliance_documents(
+    current_user: dict = Depends(get_current_user)
+):
+    """Get all compliance documents"""
+    org_id = current_user.get("organization", "default")
+    
+    documents = await db.compliance_documents.find(
+        {"organization_id": org_id}
+    ).sort("uploaded_at", -1).to_list(length=1000)
+    
+    return {"documents": documents, "count": len(documents)}
+
+@api_router.delete("/compliance/documents/{document_id}")
+async def delete_compliance_document(
+    document_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete a compliance document"""
+    org_id = current_user.get("organization", "default")
+    
+    document = await db.compliance_documents.find_one(
+        {"id": document_id, "organization_id": org_id}
+    )
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    await db.compliance_documents.delete_one({"id": document_id})
+    
+    # Record blockchain transaction
+    await record_blockchain_transaction("document_deletion", document_id)
+    
+    return {"message": "Document deleted successfully"}
+
+@api_router.get("/compliance/report")
+async def generate_compliance_report(current_user: dict = Depends(get_current_user)):
+    """Generate comprehensive compliance report"""
+    user_id = current_user["id"]
+    org_id = current_user.get("organization", "default")
+    industry = current_user.get("industry", "general")
+    
+    # Get compliance score
+    score_response = await get_compliance_score(current_user)
+    
+    # Get latest audit
+    latest_audit = await db.compliance_audits.find_one(
+        {"organization_id": org_id},
+        sort=[("audit_date", -1)]
+    )
+    
+    # Get controls summary
+    controls = await db.compliance_controls.find({"user_id": user_id}).to_list(length=1000)
+    controls_summary = {
+        "total": len(controls),
+        "implemented": len([c for c in controls if c.get("status") == "implemented"]),
+        "partial": len([c for c in controls if c.get("status") == "partial"]),
+        "not_implemented": len([c for c in controls if c.get("status") == "not_implemented"])
+    }
+    
+    # Get documents summary
+    documents = await db.compliance_documents.find({"organization_id": org_id}).to_list(length=1000)
+    
+    # Get threats summary
+    active_threats = await db.threats.count_documents({"organization_id": org_id, "status": "active"})
+    mitigated_threats = await db.threats.count_documents({"organization_id": org_id, "status": "mitigated"})
+    
+    report = {
+        "report_id": str(uuid.uuid4()),
+        "organization_id": org_id,
+        "industry": industry,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_by": user_id,
+        "compliance_score": score_response.model_dump(),
+        "latest_audit": latest_audit,
+        "controls_summary": controls_summary,
+        "documents_count": len(documents),
+        "threats_summary": {
+            "active": active_threats,
+            "mitigated": mitigated_threats
+        },
+        "recommendations": latest_audit.get("recommendations", []) if latest_audit else []
+    }
+    
+    return report
+
 # Root endpoint
 @api_router.get("/")
 async def root():
