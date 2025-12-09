@@ -457,6 +457,219 @@ class DCTIPTester:
         self.log_result("Federated Contributions", False, f"Failed: {response.status_code if response else 'No response'}")
         return False
 
+    # ============== COMPLIANCE CENTER TESTS ==============
+
+    def test_compliance_score(self):
+        """Test GET /api/compliance/score - Dynamic compliance scoring"""
+        response = self.make_request("GET", "/compliance/score")
+        
+        if response and response.status_code == 200:
+            data = response.json()
+            required_fields = ["overall_score", "industry", "scores_by_standard", "controls_status", 
+                             "recent_audits", "threat_impact", "trend", "last_calculated"]
+            
+            if all(field in data for field in required_fields):
+                self.log_result("Compliance Score", True, 
+                              f"Retrieved compliance score: {data['overall_score']} for {data['industry']} industry")
+                return True
+            else:
+                missing = [f for f in required_fields if f not in data]
+                self.log_result("Compliance Score", False, f"Missing required fields: {missing}")
+                return False
+                
+        self.log_result("Compliance Score", False, f"Failed: {response.status_code if response else 'No response'}")
+        return False
+
+    def test_compliance_audit(self):
+        """Test POST /api/compliance/audit - Run compliance audit"""
+        response = self.make_request("POST", "/compliance/audit")
+        
+        if response and response.status_code == 200:
+            data = response.json()
+            required_fields = ["id", "audit_type", "industry", "overall_score", "findings", 
+                             "recommendations", "blockchain_hash"]
+            
+            if all(field in data for field in required_fields):
+                audit_id = data["id"]
+                self.created_resources.append(("compliance_audit", audit_id))
+                self.log_result("Compliance Audit", True, 
+                              f"Audit completed with score: {data['overall_score']}, {len(data['findings'])} findings")
+                return audit_id
+            else:
+                missing = [f for f in required_fields if f not in data]
+                self.log_result("Compliance Audit", False, f"Missing required fields: {missing}")
+                return None
+                
+        self.log_result("Compliance Audit", False, f"Failed: {response.status_code if response else 'No response'}")
+        return None
+
+    def test_compliance_audits_history(self):
+        """Test GET /api/compliance/audits - Get audit history"""
+        response = self.make_request("GET", "/compliance/audits", params={"limit": 10})
+        
+        if response and response.status_code == 200:
+            data = response.json()
+            if isinstance(data, list):
+                self.log_result("Compliance Audits History", True, f"Retrieved {len(data)} audit records")
+                return True
+            else:
+                self.log_result("Compliance Audits History", False, "Response is not a list")
+                return False
+                
+        self.log_result("Compliance Audits History", False, f"Failed: {response.status_code if response else 'No response'}")
+        return False
+
+    def test_compliance_controls(self):
+        """Test GET /api/compliance/controls - Get compliance controls"""
+        response = self.make_request("GET", "/compliance/controls")
+        
+        if response and response.status_code == 200:
+            data = response.json()
+            if isinstance(data, list) and len(data) > 0:
+                # Check structure of first control
+                control = data[0]
+                required_fields = ["id", "control_id", "name", "description", "standard", 
+                                 "category", "status"]
+                
+                if all(field in control for field in required_fields):
+                    self.log_result("Compliance Controls", True, 
+                                  f"Retrieved {len(data)} controls, auto-generated for user's industry")
+                    return data[0]["id"]  # Return first control ID for status update test
+                else:
+                    missing = [f for f in required_fields if f not in control]
+                    self.log_result("Compliance Controls", False, f"Control missing fields: {missing}")
+                    return None
+            else:
+                self.log_result("Compliance Controls", False, "No controls returned or invalid format")
+                return None
+                
+        self.log_result("Compliance Controls", False, f"Failed: {response.status_code if response else 'No response'}")
+        return None
+
+    def test_compliance_control_status_update(self, control_id):
+        """Test PUT /api/compliance/controls/{control_id}/status - Update control status"""
+        if not control_id:
+            self.log_result("Update Control Status", False, "No control ID provided")
+            return False
+            
+        update_data = {
+            "status": "implemented",
+            "notes": "Successfully implemented multi-factor authentication across all systems"
+        }
+        
+        response = self.make_request("PUT", f"/compliance/controls/{control_id}/status", update_data)
+        
+        if response and response.status_code == 200:
+            data = response.json()
+            if "message" in data and "blockchain_hash" in data:
+                self.log_result("Update Control Status", True, 
+                              f"Control status updated to 'implemented' with blockchain hash")
+                return True
+            else:
+                self.log_result("Update Control Status", False, "Missing message or blockchain_hash in response")
+                return False
+                
+        self.log_result("Update Control Status", False, f"Failed: {response.status_code if response else 'No response'}")
+        return False
+
+    def test_compliance_document_upload(self):
+        """Test POST /api/compliance/documents - Upload document"""
+        # Create sample base64 content (simulating a small text file)
+        import base64
+        sample_content = "This is a sample compliance policy document for testing purposes."
+        base64_content = base64.b64encode(sample_content.encode()).decode()
+        
+        document_data = {
+            "title": "Information Security Policy v2.1",
+            "description": "Comprehensive information security policy covering access controls, data protection, and incident response procedures",
+            "document_type": "policy",
+            "compliance_standard": "ISO27001",
+            "file_name": "info_security_policy_v2.1.txt",
+            "file_size": len(sample_content),
+            "file_content": base64_content,
+            "tags": ["security", "policy", "iso27001", "access_control"]
+        }
+        
+        response = self.make_request("POST", "/compliance/documents", document_data)
+        
+        if response and response.status_code == 200:
+            data = response.json()
+            required_fields = ["id", "title", "file_name", "blockchain_hash", "uploaded_at"]
+            
+            if all(field in data for field in required_fields):
+                document_id = data["id"]
+                self.created_resources.append(("compliance_document", document_id))
+                self.log_result("Upload Compliance Document", True, 
+                              f"Document '{data['title']}' uploaded with blockchain hash")
+                return document_id
+            else:
+                missing = [f for f in required_fields if f not in data]
+                self.log_result("Upload Compliance Document", False, f"Missing required fields: {missing}")
+                return None
+                
+        self.log_result("Upload Compliance Document", False, f"Failed: {response.status_code if response else 'No response'}")
+        return None
+
+    def test_compliance_documents_list(self):
+        """Test GET /api/compliance/documents - Get documents list"""
+        response = self.make_request("GET", "/compliance/documents")
+        
+        if response and response.status_code == 200:
+            data = response.json()
+            if isinstance(data, list):
+                self.log_result("Compliance Documents List", True, f"Retrieved {len(data)} compliance documents")
+                return True
+            else:
+                self.log_result("Compliance Documents List", False, "Response is not a list")
+                return False
+                
+        self.log_result("Compliance Documents List", False, f"Failed: {response.status_code if response else 'No response'}")
+        return False
+
+    def test_compliance_document_delete(self, document_id):
+        """Test DELETE /api/compliance/documents/{document_id} - Delete document"""
+        if not document_id:
+            self.log_result("Delete Compliance Document", False, "No document ID provided")
+            return False
+            
+        response = self.make_request("DELETE", f"/compliance/documents/{document_id}")
+        
+        if response and response.status_code == 200:
+            data = response.json()
+            if "message" in data and "blockchain_hash" in data:
+                self.log_result("Delete Compliance Document", True, 
+                              "Document deleted successfully with blockchain transaction recorded")
+                return True
+            else:
+                self.log_result("Delete Compliance Document", False, "Missing message or blockchain_hash in response")
+                return False
+                
+        self.log_result("Delete Compliance Document", False, f"Failed: {response.status_code if response else 'No response'}")
+        return False
+
+    def test_compliance_report(self):
+        """Test GET /api/compliance/report - Generate compliance report"""
+        response = self.make_request("GET", "/compliance/report")
+        
+        if response and response.status_code == 200:
+            data = response.json()
+            required_sections = ["compliance_score", "latest_audit", "controls_summary", 
+                               "documents_summary", "generated_at"]
+            
+            if all(section in data for section in required_sections):
+                controls_count = data["controls_summary"]["total_controls"]
+                docs_count = data["documents_summary"]["total_documents"]
+                self.log_result("Compliance Report", True, 
+                              f"Generated comprehensive report: {controls_count} controls, {docs_count} documents")
+                return True
+            else:
+                missing = [s for s in required_sections if s not in data]
+                self.log_result("Compliance Report", False, f"Missing required sections: {missing}")
+                return False
+                
+        self.log_result("Compliance Report", False, f"Failed: {response.status_code if response else 'No response'}")
+        return False
+
     def run_all_tests(self):
         """Run all backend API tests"""
         print("🚀 Starting DCTIP Backend API Testing Suite")
