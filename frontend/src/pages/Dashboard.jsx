@@ -18,7 +18,11 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
-  Database
+  Database,
+  Globe,
+  Router,
+  Brain,
+  Radio
 } from 'lucide-react';
 import {
   BarChart,
@@ -35,6 +39,9 @@ import {
   Line,
   Legend
 } from 'recharts';
+import ThreatFeed from '../components/ThreatFeed';
+import AISuggestions from '../components/AISuggestions';
+import { Link } from 'react-router-dom';
 
 const SEVERITY_COLORS = {
   critical: '#ef4444',
