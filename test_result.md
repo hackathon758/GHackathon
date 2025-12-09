@@ -285,6 +285,66 @@ backend:
         agent: "testing"
         comment: "Federated learning APIs tested successfully: GET /federated/models (4 models), GET /federated/contributions (15 contributions). Federated ML system for collaborative threat intelligence working correctly."
 
+  - task: "Compliance Score API"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Dynamic compliance scoring based on threats, controls, and audits implemented with GET /api/compliance/score"
+
+  - task: "Compliance Audit API"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Comprehensive compliance audit system with POST /api/compliance/audit and GET /api/compliance/audits, includes blockchain integration"
+
+  - task: "Compliance Controls API"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Controls management with GET /api/compliance/controls and PUT /api/compliance/controls/{id}/status, auto-generates industry-specific controls"
+
+  - task: "Compliance Documents API"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Document management with POST/GET/DELETE /api/compliance/documents, supports base64 file upload with blockchain hashing"
+
+  - task: "Compliance Report API"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Report generation with GET /api/compliance/report, generates comprehensive compliance reports"
+
 frontend:
   - task: "Edge Devices Monitoring Page"
     implemented: true
