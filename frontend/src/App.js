@@ -27,6 +27,7 @@ import RiskAnalysis from "./pages/RiskAnalysis";
 // Layout Components
 import Sidebar from "./components/layout/Sidebar";
 import Header from "./components/layout/Header";
+import { Toaster } from "./components/ui/toaster";
 
 // Protected Route Component
 const ProtectedRoute = () => {
