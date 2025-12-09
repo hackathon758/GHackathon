@@ -229,6 +229,80 @@ class DashboardStats(BaseModel):
     threats_by_severity: Dict[str, int]
     recent_threats_trend: List[Dict[str, Any]]
 
+# Compliance Models
+class ComplianceControl(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    control_id: str
+    name: str
+    description: str
+    standard: str  # HIPAA, PCI-DSS, etc.
+    category: str  # access_control, encryption, monitoring, etc.
+    status: str = "not_implemented"  # implemented, not_implemented, partial
+    implementation_date: Optional[datetime] = None
+    last_verified: Optional[datetime] = None
+    user_id: str
+    organization_id: str
+    industry: str
+
+class ComplianceControlUpdate(BaseModel):
+    status: str
+    notes: Optional[str] = None
+
+class ComplianceDocument(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    title: str
+    description: Optional[str] = None
+    document_type: str  # policy, procedure, certificate, audit_report, risk_assessment
+    compliance_standard: str  # HIPAA, PCI-DSS, SOX, etc.
+    file_name: str
+    file_size: int
+    file_path: str
+    uploaded_by: str
+    organization_id: str
+    uploaded_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    tags: List[str] = []
+    blockchain_hash: Optional[str] = None
+
+class ComplianceDocumentCreate(BaseModel):
+    title: str
+    description: Optional[str] = None
+    document_type: str
+    compliance_standard: str
+    file_name: str
+    file_size: int
+    file_content: str  # base64 encoded
+    tags: List[str] = []
+
+class ComplianceAudit(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    audit_type: str  # full, partial, scheduled, on_demand
+    industry: str
+    standards_checked: List[str]
+    overall_score: float
+    passed_controls: int
+    failed_controls: int
+    warnings: int
+    findings: List[Dict[str, Any]]
+    recommendations: List[str]
+    audited_by: str
+    organization_id: str
+    audit_date: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    blockchain_hash: Optional[str] = None
+    status: str = "completed"  # in_progress, completed, failed
+
+class ComplianceScore(BaseModel):
+    overall_score: float
+    industry: str
+    scores_by_standard: Dict[str, float]
+    controls_status: Dict[str, int]  # implemented, not_implemented, partial counts
+    recent_audits: List[Dict[str, Any]]
+    threat_impact: float
+    trend: str  # improving, declining, stable
+    last_calculated: datetime
+
 # ============== HELPER FUNCTIONS ==============
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
