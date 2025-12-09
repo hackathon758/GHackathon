@@ -92,6 +92,15 @@ export const collaborationAPI = {
 // Compliance APIs
 export const complianceAPI = {
   getTemplates: () => api.get('/compliance/templates'),
+  getScore: () => api.get('/compliance/score'),
+  runAudit: () => api.post('/compliance/audit'),
+  getAudits: (limit = 10) => api.get(`/compliance/audits?limit=${limit}`),
+  getControls: () => api.get('/compliance/controls'),
+  updateControlStatus: (controlId, status, notes) => api.put(`/compliance/controls/${controlId}/status`, { status, notes }),
+  uploadDocument: (data) => api.post('/compliance/documents', data),
+  getDocuments: () => api.get('/compliance/documents'),
+  deleteDocument: (id) => api.delete(`/compliance/documents/${id}`),
+  generateReport: () => api.get('/compliance/report'),
 };
 
 // Edge Device APIs
