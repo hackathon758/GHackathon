@@ -80,6 +80,7 @@ function App() {
     <div className="App">
       <AuthProvider>
         <BrowserRouter>
+          <Toaster />
           <Routes>
             {/* Public Routes */}
             <Route
