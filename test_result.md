@@ -438,7 +438,11 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Frontend New Pages"
+    - "Compliance Score API"
+    - "Compliance Audit API"
+    - "Compliance Controls API"
+    - "Compliance Documents API"
+    - "Compliance Report API"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
