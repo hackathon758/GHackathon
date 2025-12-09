@@ -94,4 +94,59 @@ export const complianceAPI = {
   getTemplates: () => api.get('/compliance/templates'),
 };
 
+// Edge Device APIs
+export const edgeDeviceAPI = {
+  getAll: (params) => api.get('/edge-devices', { params }),
+  getById: (id) => api.get(`/edge-devices/${id}`),
+  create: (data) => api.post('/edge-devices', data),
+  getMetrics: () => api.get('/edge-devices/metrics/summary'),
+};
+
+// AI Suggestions APIs
+export const aiAPI = {
+  getSuggestions: (params) => api.get('/ai/suggestions', { params }),
+  analyzeThreat: (threatId) => api.post(`/ai/analyze-threat?threat_id=${threatId}`),
+  updateSuggestionStatus: (id, status) => api.put(`/ai/suggestions/${id}/status`, null, { params: { status } }),
+};
+
+// Reputation System APIs
+export const reputationAPI = {
+  getLeaderboard: (limit = 20) => api.get(`/reputation/leaderboard?limit=${limit}`),
+  getOrganization: (orgId) => api.get(`/reputation/${orgId}`),
+  contribute: (type) => api.post(`/reputation/contribute?contribution_type=${type}`),
+};
+
+// Network Topology APIs
+export const networkAPI = {
+  getTopology: () => api.get('/network/topology'),
+  getNodes: (params) => api.get('/network/nodes', { params }),
+};
+
+// Threat Feed APIs
+export const threatFeedAPI = {
+  getLive: (params) => api.get('/threat-feed/live', { params }),
+  generate: (count = 5) => api.post(`/threat-feed/generate?count=${count}`),
+};
+
+// Threat Correlation APIs
+export const correlationAPI = {
+  getPatterns: (params) => api.get('/correlation/patterns', { params }),
+  getClusters: () => api.get('/correlation/clusters'),
+  analyze: (threatIds) => api.post('/correlation/analyze', threatIds),
+};
+
+// Geographic Threat APIs
+export const geoAPI = {
+  getThreats: () => api.get('/geo/threats'),
+  getHeatmap: () => api.get('/geo/heatmap'),
+  getCountryDetails: (countryCode) => api.get(`/geo/country/${countryCode}`),
+};
+
+// Risk Analysis APIs
+export const riskAPI = {
+  getScore: () => api.get('/risk/score'),
+  getAnalysis: () => api.get('/risk/analysis'),
+  getTrends: (days = 30) => api.get(`/risk/trends?days=${days}`),
+};
+
 export default api;

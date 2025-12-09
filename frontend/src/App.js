@@ -16,6 +16,14 @@ import Collaboration from "./pages/Collaboration";
 import Compliance from "./pages/Compliance";
 import Settings from "./pages/Settings";
 
+// Advanced Feature Pages
+import EdgeDevices from "./pages/EdgeDevices";
+import Reputation from "./pages/Reputation";
+import NetworkTopology from "./pages/NetworkTopology";
+import ThreatMap from "./pages/ThreatMap";
+import ThreatCorrelation from "./pages/ThreatCorrelation";
+import RiskAnalysis from "./pages/RiskAnalysis";
+
 // Layout Components
 import Sidebar from "./components/layout/Sidebar";
 import Header from "./components/layout/Header";
@@ -92,6 +100,7 @@ function App() {
 
             {/* Protected Routes */}
             <Route element={<ProtectedRoute />}>
+              {/* Core Features */}
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/threats" element={<Threats />} />
               <Route path="/alerts" element={<Alerts />} />
@@ -101,6 +110,14 @@ function App() {
               <Route path="/collaboration" element={<Collaboration />} />
               <Route path="/compliance" element={<Compliance />} />
               <Route path="/settings" element={<Settings />} />
+              
+              {/* Advanced Features */}
+              <Route path="/edge-devices" element={<EdgeDevices />} />
+              <Route path="/reputation" element={<Reputation />} />
+              <Route path="/network-topology" element={<NetworkTopology />} />
+              <Route path="/threat-map" element={<ThreatMap />} />
+              <Route path="/threat-correlation" element={<ThreatCorrelation />} />
+              <Route path="/risk-analysis" element={<RiskAnalysis />} />
             </Route>
 
             {/* Default Redirect */}
