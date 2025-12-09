@@ -747,6 +747,20 @@ class DCTIPTester:
         self.test_federated_models()
         self.test_federated_contributions()
         
+        # Compliance Center Tests
+        print("\n📋 Compliance Center Tests")
+        self.test_compliance_score()
+        audit_id = self.test_compliance_audit()
+        self.test_compliance_audits_history()
+        control_id = self.test_compliance_controls()
+        if control_id:
+            self.test_compliance_control_status_update(control_id)
+        document_id = self.test_compliance_document_upload()
+        self.test_compliance_documents_list()
+        if document_id:
+            self.test_compliance_document_delete(document_id)
+        self.test_compliance_report()
+        
         # Print Summary
         self.print_summary()
         return True
