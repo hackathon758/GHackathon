@@ -349,14 +349,20 @@ const Dashboard = () => {
         </Card>
       </div>
 
+      {/* AI Suggestions & Threat Feed Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <AISuggestions compact />
+        <ThreatFeed compact />
+      </div>
+
       {/* Quick Actions */}
       <Card className="bg-slate-800/50 border-slate-700" data-testid="quick-actions-card">
         <CardHeader>
-          <CardTitle className="text-white">Quick Actions</CardTitle>
-          <CardDescription className="text-slate-400">Common security operations</CardDescription>
+          <CardTitle className="text-white">Quick Actions & Navigation</CardTitle>
+          <CardDescription className="text-slate-400">Common security operations and advanced features</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
             <Button variant="outline" className="h-20 flex-col gap-2 border-slate-700 text-slate-300 hover:bg-slate-700" data-testid="action-scan">
               <Shield className="w-6 h-6" />
               <span>Run Scan</span>
@@ -365,14 +371,30 @@ const Dashboard = () => {
               <Database className="w-6 h-6" />
               <span>Generate Report</span>
             </Button>
-            <Button variant="outline" className="h-20 flex-col gap-2 border-slate-700 text-slate-300 hover:bg-slate-700" data-testid="action-train">
-              <Network className="w-6 h-6" />
-              <span>Train Model</span>
-            </Button>
-            <Button variant="outline" className="h-20 flex-col gap-2 border-slate-700 text-slate-300 hover:bg-slate-700" data-testid="action-audit">
-              <Link2 className="w-6 h-6" />
-              <span>Audit Trail</span>
-            </Button>
+            <Link to="/edge-devices" className="contents">
+              <Button variant="outline" className="h-20 flex-col gap-2 border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10" data-testid="action-edge">
+                <Router className="w-6 h-6" />
+                <span>Edge Devices</span>
+              </Button>
+            </Link>
+            <Link to="/threat-map" className="contents">
+              <Button variant="outline" className="h-20 flex-col gap-2 border-orange-500/50 text-orange-400 hover:bg-orange-500/10" data-testid="action-map">
+                <Globe className="w-6 h-6" />
+                <span>Threat Map</span>
+              </Button>
+            </Link>
+            <Link to="/risk-analysis" className="contents">
+              <Button variant="outline" className="h-20 flex-col gap-2 border-purple-500/50 text-purple-400 hover:bg-purple-500/10" data-testid="action-risk">
+                <Brain className="w-6 h-6" />
+                <span>Risk Analysis</span>
+              </Button>
+            </Link>
+            <Link to="/network-topology" className="contents">
+              <Button variant="outline" className="h-20 flex-col gap-2 border-green-500/50 text-green-400 hover:bg-green-500/10" data-testid="action-network">
+                <Network className="w-6 h-6" />
+                <span>Network</span>
+              </Button>
+            </Link>
           </div>
         </CardContent>
       </Card>
