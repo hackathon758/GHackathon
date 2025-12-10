@@ -2517,7 +2517,7 @@ async def update_control_status(
     """Update compliance control implementation status"""
     user_id = current_user["id"]
     
-    control = await db.compliance_controls.find_one({"id": control_id, "user_id": user_id})
+    control = await db.compliance_controls.find_one({"id": control_id, "user_id": user_id}, {"_id": 0})
     if not control:
         raise HTTPException(status_code=404, detail="Control not found")
     
