@@ -2206,7 +2206,7 @@ async def get_compliance_score(current_user: dict = Depends(get_current_user)):
     
     # Get recent audits
     recent_audits = await db.compliance_audits.find(
-        {"organization_id": org_id}
+        {"organization_id": org_id}, {"_id": 0}
     ).sort("audit_date", -1).limit(5).to_list(length=5)
     
     # Calculate overall score (0-100)
