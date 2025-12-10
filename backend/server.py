@@ -2449,7 +2449,7 @@ async def get_compliance_controls(current_user: dict = Depends(get_current_user)
     industry = current_user.get("industry", "general")
     
     # Check if controls already exist for this user
-    existing_controls = await db.compliance_controls.find({"user_id": user_id}).to_list(length=1000)
+    existing_controls = await db.compliance_controls.find({"user_id": user_id}, {"_id": 0}).to_list(length=1000)
     
     if not existing_controls:
         # Initialize default controls based on industry
