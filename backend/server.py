@@ -2436,7 +2436,7 @@ async def get_compliance_audits(
     org_id = current_user.get("organization", "default")
     
     audits = await db.compliance_audits.find(
-        {"organization_id": org_id}
+        {"organization_id": org_id}, {"_id": 0}
     ).sort("audit_date", -1).limit(limit).to_list(length=limit)
     
     return {"audits": audits, "count": len(audits)}
