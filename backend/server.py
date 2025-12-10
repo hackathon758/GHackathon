@@ -2312,10 +2312,10 @@ async def run_compliance_audit(current_user: dict = Depends(get_current_user)):
     standards = standards_map.get(industry, ["ISO 27001", "NIST CSF"])
     
     # Get controls
-    controls = await db.compliance_controls.find({"user_id": user_id}).to_list(length=1000)
+    controls = await db.compliance_controls.find({"user_id": user_id}, {"_id": 0}).to_list(length=1000)
     
     # Get threats
-    active_threats = await db.threats.find({"organization_id": org_id, "status": "active"}).to_list(length=100)
+    active_threats = await db.threats.find({"organization_id": org_id, "status": "active"}, {"_id": 0}).to_list(length=100)
     critical_threats = [t for t in active_threats if t.get("severity") == "critical"]
     high_threats = [t for t in active_threats if t.get("severity") == "high"]
     
