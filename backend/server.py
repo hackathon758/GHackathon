@@ -2198,7 +2198,7 @@ async def get_compliance_score(current_user: dict = Depends(get_current_user)):
     critical_threats = await db.threats.count_documents({"organization_id": org_id, "severity": "critical", "status": "active"})
     
     # Get controls data
-    controls = await db.compliance_controls.find({"user_id": user_id}).to_list(length=1000)
+    controls = await db.compliance_controls.find({"user_id": user_id}, {"_id": 0}).to_list(length=1000)
     total_controls = len(controls)
     implemented_controls = len([c for c in controls if c.get("status") == "implemented"])
     partial_controls = len([c for c in controls if c.get("status") == "partial"])
