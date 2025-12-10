@@ -2621,12 +2621,12 @@ async def generate_compliance_report(current_user: dict = Depends(get_current_us
     
     # Get latest audit
     latest_audit = await db.compliance_audits.find_one(
-        {"organization_id": org_id},
+        {"organization_id": org_id}, {"_id": 0},
         sort=[("audit_date", -1)]
     )
     
     # Get controls summary
-    controls = await db.compliance_controls.find({"user_id": user_id}).to_list(length=1000)
+    controls = await db.compliance_controls.find({"user_id": user_id}, {"_id": 0}).to_list(length=1000)
     controls_summary = {
         "total": len(controls),
         "implemented": len([c for c in controls if c.get("status") == "implemented"]),
