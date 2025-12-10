@@ -2534,7 +2534,7 @@ async def update_control_status(
     # Record blockchain transaction
     await record_blockchain_transaction("control_update", control_id)
     
-    updated_control = await db.compliance_controls.find_one({"id": control_id})
+    updated_control = await db.compliance_controls.find_one({"id": control_id}, {"_id": 0})
     return updated_control
 
 @api_router.post("/compliance/documents")
