@@ -2383,7 +2383,7 @@ async def run_compliance_audit(current_user: dict = Depends(get_current_user)):
         recommendations.append("Upload required compliance policies and procedures")
     
     # Check 4: Incident Response
-    incidents = await db.incidents.find({"organization_id": org_id}).to_list(length=100)
+    incidents = await db.incidents.find({"organization_id": org_id}, {"_id": 0}).to_list(length=100)
     if len(incidents) == 0 and len(active_threats) > 0:
         warnings += 1
         findings.append({
