@@ -2635,7 +2635,7 @@ async def generate_compliance_report(current_user: dict = Depends(get_current_us
     }
     
     # Get documents summary
-    documents = await db.compliance_documents.find({"organization_id": org_id}).to_list(length=1000)
+    documents = await db.compliance_documents.find({"organization_id": org_id}, {"_id": 0}).to_list(length=1000)
     
     # Get threats summary
     active_threats = await db.threats.count_documents({"organization_id": org_id, "status": "active"})
