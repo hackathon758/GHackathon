@@ -2597,7 +2597,7 @@ async def delete_compliance_document(
     org_id = current_user.get("organization", "default")
     
     document = await db.compliance_documents.find_one(
-        {"id": document_id, "organization_id": org_id}
+        {"id": document_id, "organization_id": org_id}, {"_id": 0}
     )
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
