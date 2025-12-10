@@ -2504,7 +2504,7 @@ async def get_compliance_controls(current_user: dict = Depends(get_current_user)
             await db.compliance_controls.insert_one(control_dict)
         
         # Fetch newly created controls
-        existing_controls = await db.compliance_controls.find({"user_id": user_id}).to_list(length=1000)
+        existing_controls = await db.compliance_controls.find({"user_id": user_id}, {"_id": 0}).to_list(length=1000)
     
     return {"controls": existing_controls, "count": len(existing_controls)}
 
