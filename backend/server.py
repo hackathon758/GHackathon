@@ -2583,7 +2583,7 @@ async def get_compliance_documents(
     org_id = current_user.get("organization", "default")
     
     documents = await db.compliance_documents.find(
-        {"organization_id": org_id}
+        {"organization_id": org_id}, {"_id": 0}
     ).sort("uploaded_at", -1).to_list(length=1000)
     
     return {"documents": documents, "count": len(documents)}
