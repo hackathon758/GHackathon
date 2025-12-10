@@ -2372,7 +2372,7 @@ async def run_compliance_audit(current_user: dict = Depends(get_current_user)):
         recommendations.append("Prioritize mitigation of high-severity threats")
     
     # Check 3: Documents
-    documents = await db.compliance_documents.find({"organization_id": org_id}).to_list(length=100)
+    documents = await db.compliance_documents.find({"organization_id": org_id}, {"_id": 0}).to_list(length=100)
     if len(documents) < 3:
         warnings += 1
         findings.append({
